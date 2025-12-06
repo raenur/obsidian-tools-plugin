@@ -1,17 +1,36 @@
 import {App, Editor, MarkdownView, Modal, Notice, Plugin, PluginSettingTab, Setting, TFile} from 'obsidian';
+import {Obj} from "tern";
 
 // Remember to rename these classes and interfaces!
 
 interface MyPluginSettings {
-	mySetting: string;
+	intentionPath: string;
 }
 
 const DEFAULT_SETTINGS: MyPluginSettings = {
-	mySetting: 'default'
+	intentionPath: 'intentions'
 }
 
 export default class NathTools extends Plugin {
 	settings: MyPluginSettings;
+
+	createNote(filePath: string, content: string, properties?: any) {
+		this.app.vault.create(`${filePath}.md`, content)
+			.then((createdFile: TFile) => {
+
+			if (properties != undefined) {
+				this.app.fileManager.processFrontMatter(createdFile, (frontMatter) => {
+					Object.assign(frontMatter, properties);
+				}).then((value) => {
+					console.log(`Applied properties to "${createdFile.name}"`);
+					console.log(properties);
+				})
+			}
+		})
+			.catch((reason) => {
+				new Notice(reason);
+			})
+	}
 
 	async onload() {
 		await this.loadSettings();
@@ -29,18 +48,24 @@ export default class NathTools extends Plugin {
 				editor.replaceSelection('Sample Editor Command');
 			}
 		});
+		this.addCommand({
+			id: 'intention-from-selection',
+			name: 'Create intention from selection',
+			editorCallback: (editor: Editor) => {
+				let filename = `${editor.getSelection()}.md`;
+
+				this.createIntention(editor.getSelection());
+			}
+		})
 
 		this.addCommand({
 			id: 'task-from-selection',
 			name: 'Create task note from selected text',
 			editorCallback: (editor: Editor) => {
-				let filename = `${editor.getSelection()}.md`;
+				let filename = `${editor.getSelection()}`;
 
-				this.app.vault.create(filename,'note content').then((createdFile: TFile) => {
-					this.app.fileManager.processFrontMatter(createdFile,(frontMatter) => {
-						frontMatter['Target Date'] = new Date();
-					})
-				})
+				let taskContent = editor.getSelection();
+				this.createTask(taskContent);
 			}
 		})
 
@@ -48,15 +73,38 @@ export default class NathTools extends Plugin {
 			id: 'create-task-popup',
 			name: 'Create task',
 			callback: () => {
-				let modal = new Modal(this.app);
-				modal.containerEl.setText('balls');
-				modal.open();
+				new StringInputModal(this.app, 'Create Task', (text) => console.log(text)).open();
 			}
 		})
 
 		// This adds a settings tab so the user can configure various aspects of the plugin
 		this.addSettingTab(new SampleSettingTab(this.app, this));
 
+	}
+
+	private async createIntention(intentionContent: string) {
+		//Check intention path has value
+		if(this.settings.intentionPath === ''){
+			new Notice('No intention path defined');
+			return;
+		}
+
+		//Check intention folder
+		if(!this.app.vault.getFolderByPath(this.settings.intentionPath)) {
+			await this.app.vault.createFolder(this.settings.intentionPath);
+		}
+
+		this.createNote(`${this.settings.intentionPath}/Intention-${Date.now()}`, intentionContent, {
+			'intention date': new Date(),
+			'intention statement': intentionContent,
+			Stage: 'created'
+		});
+	}
+
+	private createTask(taskContent: string) {
+		this.createNote(taskContent, taskContent, {
+			'Target Date': new Date()
+		});
 	}
 
 	onunload() {
@@ -72,6 +120,59 @@ export default class NathTools extends Plugin {
 	}
 }
 
+class StringInputModal extends Modal {
+
+	inputString: string
+
+	constructor(app: App, title: string, onEnter: (text: string) => void) {
+		super(app);
+		this.setTitle(title);
+
+		this.contentEl.createEl('input', {type: 'text', cls: 'stringInput'});
+
+		this.containerEl.addEventListener("keydown", (event) => {
+			console.log(event);
+			if (event.key == 'Enter') {
+				this.close();
+				onEnter(this.inputString)
+			}
+		})
+	}
+}
+
+class TestModal extends Modal {
+	constructor(app: App, onOK: (text: string) => void) {
+		super(app);
+		this.setTitle('Enter some text');
+
+		let name = '';
+		new Setting(this.contentEl)
+			.setName('Text')
+			.addText((text) => {
+					text.onChange((value) => {
+						name = value;
+					})
+				}
+			);
+		new Setting(this.contentEl)
+			.addButton((btn) =>
+				btn.setButtonText('OK')
+					.setCta()
+					.onClick(() => {
+						this.close();
+						onOK(name);
+					})
+			);
+		this.containerEl.addEventListener("keydown", (event) => {
+			console.log(event);
+			if (event.key == 'Enter') {
+				this.close();
+			}
+		})
+	}
+}
+
+
 class SampleSettingTab extends PluginSettingTab {
 	plugin: NathTools;
 
@@ -86,13 +187,13 @@ class SampleSettingTab extends PluginSettingTab {
 		containerEl.empty();
 
 		new Setting(containerEl)
-			.setName('Setting #1')
-			.setDesc('It\'s a secret')
+			.setName('Intention Path')
+			.setDesc('Path for intention notes')
 			.addText(text => text
-				.setPlaceholder('Enter your secret')
-				.setValue(this.plugin.settings.mySetting)
+				.setPlaceholder('Enter path')
+				.setValue(this.plugin.settings.intentionPath)
 				.onChange(async (value) => {
-					this.plugin.settings.mySetting = value;
+					this.plugin.settings.intentionPath = value;
 					await this.plugin.saveSettings();
 				}));
 	}
