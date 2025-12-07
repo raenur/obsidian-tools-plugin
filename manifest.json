@@ -1,6 +1,6 @@
 {
-	"id": "nath-tools",
-	"name": "Nath's Tools",
+	"id": "obsidian-tools",
+	"name": "Nath's Obsidian Tools",
 	"version": "1.0.0",
 	"minAppVersion": "0.15.0",
 	"description": "Tools that help Nathan",
