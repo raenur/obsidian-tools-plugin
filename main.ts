@@ -14,22 +14,26 @@ const DEFAULT_SETTINGS: MyPluginSettings = {
 export default class NathTools extends Plugin {
 	settings: MyPluginSettings;
 
-	createNote(filePath: string, content: string, properties?: any) {
-		this.app.vault.create(`${filePath}.md`, content)
-			.then((createdFile: TFile) => {
+	createNote(filePath: string, content: string, properties?: any): Promise<void> {
 
-			if (properties != undefined) {
-				this.app.fileManager.processFrontMatter(createdFile, (frontMatter) => {
-					Object.assign(frontMatter, properties);
-				}).then((value) => {
-					console.log(`Applied properties to "${createdFile.name}"`);
-					console.log(properties);
+		return new Promise<void>((resolve, reject) => {
+			this.app.vault.create(`${filePath}.md`, content)
+				.then((createdFile: TFile) => {
+
+					if (properties != undefined) {
+						this.app.fileManager.processFrontMatter(createdFile, (frontMatter) => {
+							Object.assign(frontMatter, properties);
+						}).then((value) => {
+							console.log(`Applied properties to "${createdFile.name}"`);
+							console.log(properties);
+							resolve();
+						})
+					}
 				})
-			}
+				.catch((reason) => {
+					reject(reason);
+				})
 		})
-			.catch((reason) => {
-				new Notice(reason);
-			})
 	}
 
 	async onload() {
@@ -51,10 +55,11 @@ export default class NathTools extends Plugin {
 		this.addCommand({
 			id: 'intention-from-selection',
 			name: 'Create intention from selection',
-			editorCallback: (editor: Editor) => {
-				let filename = `${editor.getSelection()}.md`;
-
-				this.createIntention(editor.getSelection());
+			editorCallback: async (editor: Editor) => {
+				let selection = editor.getSelection();
+				// this can only work if I get the filename back from creating intention
+				let fileName = await this.createIntention(selection);
+				editor.replaceSelection(`[[${fileName}|${selection}]]`)
 			}
 		})
 
@@ -84,21 +89,24 @@ export default class NathTools extends Plugin {
 
 	private async createIntention(intentionContent: string) {
 		//Check intention path has value
-		if(this.settings.intentionPath === ''){
+		if (this.settings.intentionPath === '') {
 			new Notice('No intention path defined');
 			return;
 		}
 
 		//Check intention folder
-		if(!this.app.vault.getFolderByPath(this.settings.intentionPath)) {
+		if (!this.app.vault.getFolderByPath(this.settings.intentionPath)) {
 			await this.app.vault.createFolder(this.settings.intentionPath);
 		}
 
-		this.createNote(`${this.settings.intentionPath}/Intention-${Date.now()}`, intentionContent, {
+		let fileName = `Intention-${Date.now()}`;
+		await this.createNote(`${this.settings.intentionPath}/${fileName}`, intentionContent, {
 			'intention date': new Date(),
 			'intention statement': intentionContent,
 			Stage: 'created'
 		});
+		return fileName;
+
 	}
 
 	private createTask(taskContent: string) {
