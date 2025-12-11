@@ -1,5 +1,5 @@
 import {App, Editor, MarkdownView, Modal, Notice, Plugin, PluginSettingTab, Setting, TFile} from 'obsidian';
-import {Obj} from "tern";
+import {TextInputModal} from "./textInputModal";
 
 // Remember to rename these classes and interfaces!
 
@@ -80,14 +80,28 @@ export default class NathTools extends Plugin {
 			callback: () => {
 				new StringInputModal(this.app, 'Create Task', (text) => console.log(text)).open();
 			}
-		})
+		});
+
+		this.addCommand({
+			id: 'test-modal',
+			name: 'Test Modal command',
+			callback: () => {
+				new TextInputModal(this.app)
+					.setTitle("Give me intention")
+					.onEnter((text, date, tags) => {
+						console.log(text);
+						console.log(date);
+						this.createIntention(text, date, tags);
+					}).open();
+			}
+		});
 
 		// This adds a settings tab so the user can configure various aspects of the plugin
 		this.addSettingTab(new SampleSettingTab(this.app, this));
 
 	}
 
-	private async createIntention(intentionContent: string) {
+	private async createIntention(intentionContent: string, date?: Date, tags?: string[]) {
 		//Check intention path has value
 		if (this.settings.intentionPath === '') {
 			new Notice('No intention path defined');
@@ -99,11 +113,12 @@ export default class NathTools extends Plugin {
 			await this.app.vault.createFolder(this.settings.intentionPath);
 		}
 
-		let fileName = `Intention-${Date.now()}`;
+		let fileName = `Intention-${intentionContent.replace(/\s/g,'-')}-${Date.now()}`;
 		await this.createNote(`${this.settings.intentionPath}/${fileName}`, intentionContent, {
-			'intention date': new Date(),
+			'intention date': date ? date : new Date(),
 			'intention statement': intentionContent,
-			Stage: 'created'
+			Stage: 'created',
+			tags: tags
 		});
 		return fileName;
 

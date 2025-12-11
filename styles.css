@@ -10,3 +10,8 @@ If your plugin does not need CSS, delete this file.
 .stringInput {
 	width: 100%;
 }
+input.input-modal {
+	width: 100%;
+	height: 2em;
+	font-size: 2em;
+}
