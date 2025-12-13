@@ -101,7 +101,7 @@ export default class NathTools extends Plugin {
 
 	}
 
-	private async createIntention(intentionContent: string, date?: Date, tags?: string[]) {
+	private async createIntention(intentionString: string, date?: Date, tags?: string[]) {
 		//Check intention path has value
 		if (this.settings.intentionPath === '') {
 			new Notice('No intention path defined');
@@ -113,15 +113,19 @@ export default class NathTools extends Plugin {
 			await this.app.vault.createFolder(this.settings.intentionPath);
 		}
 
-		let fileName = `Intention-${intentionContent.replace(/\s/g,'-')}-${Date.now()}`;
-		await this.createNote(`${this.settings.intentionPath}/${fileName}`, intentionContent, {
+		let fileName = this.getFileName(`intention ${intentionString}`);
+		await this.createNote(`${this.settings.intentionPath}/${fileName}`, intentionString, {
 			'intention date': date ? date : new Date(),
-			'intention statement': intentionContent,
+			'intention statement': intentionString,
 			Stage: 'created',
 			tags: tags
 		});
 		return fileName;
 
+	}
+
+	private getFileName(textToUse: string) {
+		return `${Date.now()}-${textToUse.replace(/\s/g, '-')}`;
 	}
 
 	private createTask(taskContent: string) {
