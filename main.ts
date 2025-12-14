@@ -83,11 +83,11 @@ export default class NathTools extends Plugin {
 		});
 
 		this.addCommand({
-			id: 'test-modal',
-			name: 'Test Modal command',
+			id: 'create-intention',
+			name: 'Create Intention',
 			callback: () => {
 				new TextInputModal(this.app)
-					.setTitle("Give me intention")
+					.setTitle("Describe intention")
 					.onEnter((text, date, tags) => {
 						console.log(text);
 						console.log(date);
