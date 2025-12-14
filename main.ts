@@ -43,15 +43,6 @@ export default class NathTools extends Plugin {
 		const statusBarItemEl = this.addStatusBarItem();
 		statusBarItemEl.setText('NS Tools active');
 
-		// This adds an editor command that can perform some operation on the current editor instance
-		this.addCommand({
-			id: 'sample-editor-command',
-			name: 'Sample editor command',
-			editorCallback: (editor: Editor, _view: MarkdownView) => {
-				console.log(editor.getSelection());
-				editor.replaceSelection('Sample Editor Command');
-			}
-		});
 		this.addCommand({
 			id: 'intention-from-selection',
 			name: 'Create intention from selection',
@@ -62,25 +53,6 @@ export default class NathTools extends Plugin {
 				editor.replaceSelection(`[[${fileName}|${selection}]]`)
 			}
 		})
-
-		this.addCommand({
-			id: 'task-from-selection',
-			name: 'Create task note from selected text',
-			editorCallback: (editor: Editor) => {
-				let filename = `${editor.getSelection()}`;
-
-				let taskContent = editor.getSelection();
-				this.createTask(taskContent);
-			}
-		})
-
-		this.addCommand({
-			id: 'create-task-popup',
-			name: 'Create task',
-			callback: () => {
-				new StringInputModal(this.app, 'Create Task', (text) => console.log(text)).open();
-			}
-		});
 
 		this.addCommand({
 			id: 'create-intention',
@@ -97,7 +69,7 @@ export default class NathTools extends Plugin {
 		});
 
 		// This adds a settings tab so the user can configure various aspects of the plugin
-		this.addSettingTab(new SampleSettingTab(this.app, this));
+		this.addSettingTab(new GeneralSettingTab(this.app, this));
 
 	}
 
@@ -147,60 +119,7 @@ export default class NathTools extends Plugin {
 	}
 }
 
-class StringInputModal extends Modal {
-
-	inputString: string
-
-	constructor(app: App, title: string, onEnter: (text: string) => void) {
-		super(app);
-		this.setTitle(title);
-
-		this.contentEl.createEl('input', {type: 'text', cls: 'stringInput'});
-
-		this.containerEl.addEventListener("keydown", (event) => {
-			console.log(event);
-			if (event.key == 'Enter') {
-				this.close();
-				onEnter(this.inputString)
-			}
-		})
-	}
-}
-
-class TestModal extends Modal {
-	constructor(app: App, onOK: (text: string) => void) {
-		super(app);
-		this.setTitle('Enter some text');
-
-		let name = '';
-		new Setting(this.contentEl)
-			.setName('Text')
-			.addText((text) => {
-					text.onChange((value) => {
-						name = value;
-					})
-				}
-			);
-		new Setting(this.contentEl)
-			.addButton((btn) =>
-				btn.setButtonText('OK')
-					.setCta()
-					.onClick(() => {
-						this.close();
-						onOK(name);
-					})
-			);
-		this.containerEl.addEventListener("keydown", (event) => {
-			console.log(event);
-			if (event.key == 'Enter') {
-				this.close();
-			}
-		})
-	}
-}
-
-
-class SampleSettingTab extends PluginSettingTab {
+class GeneralSettingTab extends PluginSettingTab {
 	plugin: NathTools;
 
 	constructor(app: App, plugin: NathTools) {
