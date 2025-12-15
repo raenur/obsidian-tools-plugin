@@ -1,14 +1,68 @@
-import {App, Editor, MarkdownView, Modal, Notice, Plugin, PluginSettingTab, Setting, TFile} from 'obsidian';
+import {App, Command, Editor, Hotkey, MarkdownFileInfo, MarkdownView,
+	Notice,
+	Plugin,
+	PluginSettingTab,
+	Setting,
+	TFile
+} from 'obsidian';
 import {TextInputModal} from "./textInputModal";
+import {showTooltip} from "@codemirror/view";
 
 // Remember to rename these classes and interfaces!
 
 interface MyPluginSettings {
 	intentionPath: string;
+	dailyLogPath: string;
 }
 
 const DEFAULT_SETTINGS: MyPluginSettings = {
-	intentionPath: 'intentions'
+	intentionPath: 'intentions',
+	dailyLogPath: 'daily log'
+}
+
+class CreateLogCommand implements Command {
+	private app: App;
+	callback: () => void;
+	id: string = 'create-log';
+    name: string = 'Create daily log';
+	private plugin: NathTools;
+	constructor(app: App,plugin: NathTools) {
+		this.app = app;
+		this.plugin = plugin;
+		this.callback = this.createLog;
+	}
+
+
+	private createLog() {
+		new TextInputModal(this.app)
+			.setTitle(this.name)
+			.onEnter(async (text) => {
+
+				if (!this.app.vault.getFolderByPath(this.plugin.settings.dailyLogPath)) {
+					await this.app.vault.createFolder(this.plugin.settings.dailyLogPath);
+				}
+
+				let dailylogFileName = `daily-log-${new Date().toISOString().substring(0,10)}.md`
+
+				let dailyLogFilePath = `${this.plugin.settings.dailyLogPath}/${dailylogFileName}`;
+				if(this.app.vault.getFileByPath(dailyLogFilePath) === null){
+					await this.plugin.createNote(dailyLogFilePath,`# Daily Log ${new Date().toLocaleDateString()}\n`)
+				}
+
+				let dailylogFile = this.app.vault.getFileByPath(dailyLogFilePath);
+
+				let logDateTime = new Intl.DateTimeFormat('en-GB', {
+					dateStyle: "short",
+					timeStyle: "medium"
+				}).format(new Date());
+				if (dailylogFile instanceof TFile) {
+					this.app.vault.append(dailylogFile, `\n## ${logDateTime}\n ${text}`).then(() => {
+						console.log('Nath tools: log appended')
+					})
+				}
+			})
+			.open()
+	}
 }
 
 export default class NathTools extends Plugin {
@@ -17,13 +71,13 @@ export default class NathTools extends Plugin {
 	createNote(filePath: string, content: string, properties?: any): Promise<void> {
 
 		return new Promise<void>((resolve, reject) => {
-			this.app.vault.create(`${filePath}.md`, content)
+			this.app.vault.create(`${filePath}`, content)
 				.then((createdFile: TFile) => {
 
 					if (properties != undefined) {
 						this.app.fileManager.processFrontMatter(createdFile, (frontMatter) => {
 							Object.assign(frontMatter, properties);
-						}).then((value) => {
+						}).then(() => {
 							console.log(`Applied properties to "${createdFile.name}"`);
 							console.log(properties);
 							resolve();
@@ -68,6 +122,8 @@ export default class NathTools extends Plugin {
 			}
 		});
 
+		this.addCommand(new CreateLogCommand(this.app,this));
+
 		// This adds a settings tab so the user can configure various aspects of the plugin
 		this.addSettingTab(new GeneralSettingTab(this.app, this));
 
@@ -97,13 +153,7 @@ export default class NathTools extends Plugin {
 	}
 
 	private getFileName(textToUse: string) {
-		return `${Date.now()}-${textToUse.replace(/\s/g, '-')}`;
-	}
-
-	private createTask(taskContent: string) {
-		this.createNote(taskContent, taskContent, {
-			'Target Date': new Date()
-		});
+		return `${Date.now()}-${textToUse.replace(/\s/g, '-')}.md`;
 	}
 
 	onunload() {
@@ -140,6 +190,16 @@ class GeneralSettingTab extends PluginSettingTab {
 				.setValue(this.plugin.settings.intentionPath)
 				.onChange(async (value) => {
 					this.plugin.settings.intentionPath = value;
+					await this.plugin.saveSettings();
+				}));
+		new Setting(containerEl)
+			.setName('Daily Log Path')
+			.setDesc('Path for daily log notes')
+			.addText(text => text
+				.setPlaceholder('Enter path')
+				.setValue(this.plugin.settings.dailyLogPath)
+				.onChange(async (value) => {
+					this.plugin.settings.dailyLogPath = value;
 					await this.plugin.saveSettings();
 				}));
 	}

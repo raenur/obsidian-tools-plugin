@@ -12,13 +12,18 @@ export class TextInputModal extends Modal {
 
 		this.currentYearString = new Date().getFullYear().toString();
 
-		let inputField = this.contentEl.createDiv().createEl('input', {
+		let inputField = this.contentEl.createEl('textarea', {
 			type: 'text',
 			cls: 'input-modal',
-			value: ''
+			value: '',
+			attr:{
+				rows: 6,
+				cols: 50
+			}
 		});
 		inputField.addEventListener('input', (event: InputEvent) => {
 			console.log(event);
+
 			// @ts-ignore
 			this.inputText = event.target.value;
 
@@ -64,11 +69,14 @@ export class TextInputModal extends Modal {
 				if (tagsMatch) {
 					for (const tag of tagsMatch) {
 						tags.push(tag[1]);
-						this.inputText = this.inputText.replace(tag[0],'');
+						this.inputText = this.inputText.replace(tag[0], '');
 					}
 				}
-				this.callback(this.inputText, this.date,tags);
-				this.close();
+				if (this.callback === undefined) {
+					console.log('TextInputModal: No enter callback defined');
+				} else {
+					this.callback(this.inputText, this.date, tags);
+				}
 			}
 		})
 		this.summary = this.contentEl.createDiv().createEl('p');
