@@ -1,4 +1,5 @@
-import {App, Command, Editor, Hotkey, MarkdownFileInfo, MarkdownView,
+import {
+	App, Command, Editor, Hotkey, MarkdownFileInfo, MarkdownView,
 	Notice,
 	Plugin,
 	PluginSettingTab,
@@ -7,6 +8,7 @@ import {App, Command, Editor, Hotkey, MarkdownFileInfo, MarkdownView,
 } from 'obsidian';
 import {TextInputModal} from "./textInputModal";
 import {showTooltip} from "@codemirror/view";
+import {CreateLogCommand} from "./createLogCommand";
 
 // Remember to rename these classes and interfaces!
 
@@ -20,53 +22,55 @@ const DEFAULT_SETTINGS: MyPluginSettings = {
 	dailyLogPath: 'daily log'
 }
 
-class CreateLogCommand implements Command {
-	private app: App;
-	callback: () => void;
-	id: string = 'create-log';
-    name: string = 'Create daily log';
-	private plugin: NathTools;
-	constructor(app: App,plugin: NathTools) {
-		this.app = app;
-		this.plugin = plugin;
-		this.callback = this.createLog;
-	}
+// class CreateLogCommand implements Command {
+// 	private app: App;
+// 	callback: () => void;
+// 	id: string = 'create-log';
+//     name: string = 'Create daily log';
+// 	private plugin: NathTools;
+// 	constructor(app: App,plugin: NathTools) {
+// 		this.app = app;
+// 		this.plugin = plugin;
+// 		this.callback = this.createLog;
+// 	}
+//
+//
+// 	private createLog() {
+// 		new TextInputModal(this.app)
+// 			.setTitle(this.name)
+// 			.onEnter(async (text) => {
+//
+// 				if (!this.app.vault.getFolderByPath(this.plugin.settings.dailyLogPath)) {
+// 					await this.app.vault.createFolder(this.plugin.settings.dailyLogPath);
+// 				}
+//
+// 				let dailylogFileName = `daily-log-${new Date().toISOString().substring(0,10)}.md`
+//
+// 				let dailyLogFilePath = `${this.plugin.settings.dailyLogPath}/${dailylogFileName}`;
+// 				if(this.app.vault.getFileByPath(dailyLogFilePath) === null){
+// 					await this.plugin.createNote(dailyLogFilePath,`# Daily Log ${new Date().toLocaleDateString()}\n`)
+// 				}
+//
+// 				let dailylogFile = this.app.vault.getFileByPath(dailyLogFilePath);
+//
+// 				let logDateTime = new Intl.DateTimeFormat('en-GB', {
+// 					dateStyle: "short",
+// 					timeStyle: "medium"
+// 				}).format(new Date());
+// 				if (dailylogFile instanceof TFile) {
+// 					this.app.vault.append(dailylogFile, `\n## ${logDateTime}\n ${text}`).then(() => {
+// 						console.log('Nath tools: log appended')
+// 					})
+// 				}
+// 			})
+// 			.open()
+// 	}
+// }
 
-
-	private createLog() {
-		new TextInputModal(this.app)
-			.setTitle(this.name)
-			.onEnter(async (text) => {
-
-				if (!this.app.vault.getFolderByPath(this.plugin.settings.dailyLogPath)) {
-					await this.app.vault.createFolder(this.plugin.settings.dailyLogPath);
-				}
-
-				let dailylogFileName = `daily-log-${new Date().toISOString().substring(0,10)}.md`
-
-				let dailyLogFilePath = `${this.plugin.settings.dailyLogPath}/${dailylogFileName}`;
-				if(this.app.vault.getFileByPath(dailyLogFilePath) === null){
-					await this.plugin.createNote(dailyLogFilePath,`# Daily Log ${new Date().toLocaleDateString()}\n`)
-				}
-
-				let dailylogFile = this.app.vault.getFileByPath(dailyLogFilePath);
-
-				let logDateTime = new Intl.DateTimeFormat('en-GB', {
-					dateStyle: "short",
-					timeStyle: "medium"
-				}).format(new Date());
-				if (dailylogFile instanceof TFile) {
-					this.app.vault.append(dailylogFile, `\n## ${logDateTime}\n ${text}`).then(() => {
-						console.log('Nath tools: log appended')
-					})
-				}
-			})
-			.open()
-	}
-}
 
 export default class NathTools extends Plugin {
 	settings: MyPluginSettings;
+	private currentYearString: string;
 
 	createNote(filePath: string, content: string, properties?: any): Promise<void> {
 
@@ -93,6 +97,8 @@ export default class NathTools extends Plugin {
 	async onload() {
 		await this.loadSettings();
 
+		this.currentYearString = new Date().getFullYear().toString();
+
 		// This adds a status bar item to the bottom of the app. Does not work on mobile apps.
 		const statusBarItemEl = this.addStatusBarItem();
 		statusBarItemEl.setText('NS Tools active');
@@ -112,17 +118,67 @@ export default class NathTools extends Plugin {
 			id: 'create-intention',
 			name: 'Create Intention',
 			callback: () => {
-				new TextInputModal(this.app)
-					.setTitle("Describe intention")
-					.onEnter((text, date, tags) => {
-						console.log(text);
-						console.log(date);
-						this.createIntention(text, date, tags);
-					}).open();
+				let date: Date
+				let dateMatchResult: RegExpMatchArray | null
+				let inputModal = new TextInputModal(this.app).setTitle("Describe intention");
+				inputModal.onEnter((text) => {
+					let intentionText = '';
+					let tags = [];
+					if (dateMatchResult) {
+						intentionText = text.replace(dateMatchResult[0], ' ');
+					} else {
+						intentionText = text;
+					}
+
+					let tagsMatch = intentionText.matchAll(/#([a-z0-9]+?)(?:$|\s)/g);
+					if (tagsMatch) {
+						for (const tag of tagsMatch) {
+							tags.push(tag[1]);
+							intentionText = intentionText.replace(tag[0], '');
+						}
+					}
+					intentionText = intentionText.trimEnd();
+					this.createIntention(intentionText, date, tags);
+					inputModal.close();
+				});
+				inputModal.onInput((text) => {
+					dateMatchResult = text.match(/(?:^|\s)(?<day>\d{1,2})\/(?<month>\d{1,2})(?:\/(?<year>\d{2})|)(?:$|\s)/);
+					if (dateMatchResult) {
+
+						let year;
+
+						// @ts-ignore
+						let day = Number.parseInt(dateMatchResult.groups.day);
+						// @ts-ignore
+						let month = Number.parseInt(dateMatchResult.groups.month) - 1;
+						// @ts-ignore
+						if (!dateMatchResult.groups.year) {
+							year = Number.parseInt(`${this.currentYearString}`);
+						} else {
+							// @ts-ignore
+							year = Number.parseInt(`${this.currentYearString.substring(0, 2)}${dateMatchResult.groups.year}`);
+						}
+
+						let dateNow = new Date();
+
+						//try making a date
+						date = new Date(year, month, day);
+						if (date < dateNow) {
+							date.setFullYear(dateNow.getFullYear() + 1);
+						}
+
+
+						//show date to confirm it's captured
+						inputModal.summary.setText(date.toDateString());
+					} else {
+						inputModal.summary.setText('');
+					}
+				})
+					.open();
 			}
 		});
 
-		this.addCommand(new CreateLogCommand(this.app,this));
+		this.addCommand(new CreateLogCommand(this.app, this));
 
 		// This adds a settings tab so the user can configure various aspects of the plugin
 		this.addSettingTab(new GeneralSettingTab(this.app, this));

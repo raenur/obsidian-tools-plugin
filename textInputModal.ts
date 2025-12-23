@@ -2,84 +2,88 @@ import {App, Modal} from "obsidian";
 
 export class TextInputModal extends Modal {
 	private inputText: string
-	private summary: HTMLElement
+	summary: HTMLElement
 	private currentYearString: string
 	private date: Date;
 	private callback: (text: string, date?: Date, tags?: string[]) => void
+	private callbackInput: (text: string) => void;
 
 	constructor(app: App) {
 		super(app);
-
-		this.currentYearString = new Date().getFullYear().toString();
 
 		let inputField = this.contentEl.createEl('textarea', {
 			type: 'text',
 			cls: 'input-modal',
 			value: '',
-			attr:{
+			attr: {
 				rows: 6,
 				cols: 50
 			}
 		});
 		inputField.addEventListener('input', (event: InputEvent) => {
-			console.log(event);
+			// console.log(event);
 
 			// @ts-ignore
 			this.inputText = event.target.value;
-
-			//try to find a date
-			// let result = this.inputText.match(/(?:^|\B)(\d{1,2})\/(\d{1,2})\/(\d{2})|(\d{1,2})\/(\d{1,2})(?:$|\B)/);
-			let result = this.inputText.match(/(?:^|\s)(?<day>\d{1,2})\/(?<month>\d{1,2})(?:\/(?<year>\d{2})|)(?:$|\s)/);
-			if (result) {
-
-				let year;
-
-				let day = Number.parseInt(result.groups.day);
-				let month = Number.parseInt(result.groups.month) - 1;
-				if (!result.groups.year) {
-					year = Number.parseInt(`${this.currentYearString}`);
-				} else {
-					year = Number.parseInt(`${this.currentYearString.substring(0, 2)}${result.groups.year}`);
-				}
-
-				let dateNow = new Date();
-
-
-				//try making a date
-				this.date = new Date(year, month, day);
-				if (this.date < dateNow) {
-					this.date.setFullYear(dateNow.getFullYear() + 1);
-				}
-				this.inputText = this.inputText.replace(result[0], '');
-				//show date to confirm it's captured
-				this.summary.setText(this.date.toDateString());
-			} else {
-				this.summary.setText('');
+			if (this.callbackInput) {
+				this.callbackInput(this.inputText);
 			}
 
-			//try and get tags from the input - consider making one regexp so the input format is description - date - tags and groups are named accordingly?
-			//or alternatively grab anything before the start of the date match for desc as it's already there
+			//TODO move the date parsing out of the modal
+			//try to find a date
+			// let result = this.inputText.match(/(?:^|\B)(\d{1,2})\/(\d{1,2})\/(\d{2})|(\d{1,2})\/(\d{1,2})(?:$|\B)/);
+			// let result = this.inputText.match(/(?:^|\s)(?<day>\d{1,2})\/(?<month>\d{1,2})(?:\/(?<year>\d{2})|)(?:$|\s)/);
+			// if (result) {
+			//
+			// 	let year;
+			//
+			// 	// @ts-ignore
+			// 	let day = Number.parseInt(result.groups.day);
+			// 	// @ts-ignore
+			// 	let month = Number.parseInt(result.groups.month) - 1;
+			// 	// @ts-ignore
+			// 	if (!result.groups.year) {
+			// 		year = Number.parseInt(`${this.currentYearString}`);
+			// 	} else {
+			// 		// @ts-ignore
+			// 		year = Number.parseInt(`${this.currentYearString.substring(0, 2)}${result.groups.year}`);
+			// 	}
+			//
+			// 	let dateNow = new Date();
+			//
+			// 	//try making a date
+			// 	this.date = new Date(year, month, day);
+			// 	if (this.date < dateNow) {
+			// 		this.date.setFullYear(dateNow.getFullYear() + 1);
+			// 	}
+			// 	this.inputText = this.inputText.replace(result[0], '');
+			// 	//show date to confirm it's captured
+			// 	this.summary.setText(this.date.toDateString());
+			// } else {
+			// 	this.summary.setText('');
+			// }
 
 		});
-		inputField.addEventListener('keypress', (event: KeyboardEvent) => {
-			// console.log(event);
-			let tags = [];
-			if (event.key == 'Enter') {
-				let tagsMatch = this.inputText.matchAll(/#([a-z0-9]+?)(?:$|\s)/g);
-				if (tagsMatch) {
-					for (const tag of tagsMatch) {
-						tags.push(tag[1]);
-						this.inputText = this.inputText.replace(tag[0], '');
-					}
-				}
+		inputField.addEventListener('keydown', (event: KeyboardEvent) => {
+
+
+			//TODO move the tags logic out of the modal
+
+			if (event.key == 'Enter' && event.ctrlKey) {
+
 				if (this.callback === undefined) {
 					console.log('TextInputModal: No enter callback defined');
 				} else {
-					this.callback(this.inputText, this.date, tags);
+					this.callback(this.inputText);
 				}
 			}
 		})
 		this.summary = this.contentEl.createDiv().createEl('p');
+	}
+
+	onInput(callback: (text: string) => void): TextInputModal {
+		this.callbackInput = callback;
+		return this;
 	}
 
 	onEnter(callback: (text: string, date?: Date, tags?: string[]) => void): TextInputModal {
