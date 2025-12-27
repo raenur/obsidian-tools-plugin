@@ -8,7 +8,8 @@ export class CreateLogCommand implements Command {
 	id: string = 'create-log';
 	name: string = 'Create daily log';
 	private plugin: ToolsPlugin;
-	constructor(app: App,plugin: ToolsPlugin) {
+
+	constructor(app: App, plugin: ToolsPlugin) {
 		this.app = app;
 		this.plugin = plugin;
 		this.callback = this.createLog;
@@ -17,7 +18,7 @@ export class CreateLogCommand implements Command {
 
 	private createLog() {
 		let inputModal = new TextInputModal(this.app);
-			inputModal
+		inputModal
 			.setTitle(this.name)
 			.onEnter(async (text) => {
 
@@ -25,11 +26,11 @@ export class CreateLogCommand implements Command {
 					await this.app.vault.createFolder(this.plugin.settings.dailyLogPath);
 				}
 
-				let dailylogFileName = `daily-log-${new Date().toISOString().substring(0,10)}.md`
+				let dailylogFileName = `daily-log-${new Date().toISOString().substring(0, 10)}.md`
 
 				let dailyLogFilePath = `${this.plugin.settings.dailyLogPath}/${dailylogFileName}`;
-				if(this.app.vault.getFileByPath(dailyLogFilePath) === null){
-					await this.plugin.createNote(dailyLogFilePath,`# Daily Log ${new Date().toLocaleDateString()}\n`)
+				if (this.app.vault.getFileByPath(dailyLogFilePath) === null) {
+					await this.plugin.createNote(dailyLogFilePath, `# Daily Log ${new Date().toLocaleDateString()}\n`)
 				}
 
 				let dailylogFile = this.app.vault.getFileByPath(dailyLogFilePath);
@@ -39,9 +40,18 @@ export class CreateLogCommand implements Command {
 					this.app.vault.append(dailylogFile, `\n## ${logTime}\n ${text}`).then(() => {
 						console.log('Nath tools: log appended');
 						inputModal.close();
+						this.plugin.lastLogInput = '';
 					})
 				}
 			})
-			.open()
+			.onInput(text => {
+				this.plugin.lastLogInput = text;
+			});
+			if(this.plugin.lastLogInput !== ''){
+				inputModal.setInput(this.plugin.lastLogInput);
+			}
+
+
+			inputModal.open()
 	}
 }
