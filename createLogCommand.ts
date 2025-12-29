@@ -37,7 +37,7 @@ export class CreateLogCommand implements Command {
 
 				let logTime = new Date().toLocaleTimeString();
 				if (dailylogFile instanceof TFile) {
-					this.app.vault.append(dailylogFile, `\n## ${logTime}\n ${text}`).then(() => {
+					this.app.vault.append(dailylogFile, `\n## ${logTime}\n${text}`).then(() => {
 						console.log('Nath tools: log appended');
 						inputModal.close();
 						this.plugin.lastLogInput = '';
