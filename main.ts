@@ -1,5 +1,5 @@
 import {
-	App, Command, Editor, Hotkey, MarkdownFileInfo, MarkdownView,
+	App, Command, Editor, editorEditorField, Hotkey, MarkdownFileInfo, MarkdownView,
 	Notice,
 	Plugin,
 	PluginSettingTab,
@@ -57,6 +57,14 @@ export default class NathTools extends Plugin {
 		// This adds a status bar item to the bottom of the app. Does not work on mobile apps.
 		const statusBarItemEl = this.addStatusBarItem();
 		statusBarItemEl.setText('NS Tools active');
+
+		this.addCommand({
+			id: 'daily-note-log-prefix',
+			name: 'Insert log prefix',
+			editorCallback: async(editor: Editor)=> {
+				editor.replaceSelection(`${new Date().toLocaleTimeString()} #log `)
+			}
+		})
 
 		this.addCommand({
 			id: 'intention-from-selection',
